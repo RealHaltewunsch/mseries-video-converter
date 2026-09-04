@@ -10,8 +10,9 @@ A small native macOS app for converting iPhone and camera videos to space-saving
 - Choose Low, Medium, High, or Very High variable-quality encoding for SDR video.
 - Retain 10-bit HDR and Dolby Vision when Apple's converter supports it.
 - Preserve the primary audio track(s), recording date, local creation date, and QuickTime GPS coordinates.
+- Normalize and compare localized legacy QuickTime GPS fields by their actual coordinates.
 - Remove optional embedded preview images and allow Apple auxiliary tracks such as APAC to be omitted.
-- Resume an interrupted run and re-check existing output files.
+- Resume an interrupted run, re-check existing output files, and recover valid files rejected by an older metadata check.
 - Show global progress, live messages, a TSV report, and a summary.
 - Put rejected outputs in `Problems` instead of silently accepting them.
 

@@ -44,9 +44,13 @@ probe_json() {
 }
 
 core_signature() {
-  exiftool -api QuickTimeUTC=1 -n -j \
-    -QuickTime:CreateDate -Keys:CreationDate -Keys:GPSCoordinates "$1" 2>/dev/null \
-    | jq -Sc '.[0] | del(.SourceFile)'
+  exiftool -api QuickTimeUTC=1 -n -G1 -a -j \
+    -QuickTime:CreateDate -Keys:CreationDate '-*GPSCoordinates*' "$1" 2>/dev/null \
+    | jq -Sc '.[0] | {
+        createDate: .["QuickTime:CreateDate"],
+        localCreationDate: .["Keys:CreationDate"],
+        gps: ([to_entries[] | select(.key | test("GPSCoordinates")) | .value] | first)
+      }'
 }
 
 restore_core_metadata() {
@@ -151,7 +155,7 @@ progress_line() {
 }
 
 convert_worker() {
-  local src="$1" rel stem hash row log out raw sj oj
+  local src="$1" rel stem hash row log out raw sj oj recovered
   local total_video main_video attached codec pix width height long short dv mode note rc fits_target
   rel=${src#"$source_dir"/}; stem=${rel%.*}; hash=$(hash_for "$rel")
   row="$rows_dir/$hash.tsv"; log="$logs_dir/$hash.log"
@@ -165,6 +169,18 @@ convert_worker() {
     fi
     park_file "$out" "Invalid_existing_output" "$stem" "$hash"
   fi
+
+  recovered="$problem_dir/Verification_failed_4/$hash/$stem.mov"
+  if [ -e "$recovered" ] && verify_output "$src" "$recovered" "$sj" "$oj"; then
+    mkdir -p "$(dirname "$out")"
+    mv "$recovered" "$out"
+    write_success "$src" "$rel" "$out" "$row" "recovered" "$sj" "$oj" \
+      "Recovered a previously encoded file after canonical metadata verification"
+    printf '[RECOVERED] %s — no re-encoding required\n' "$rel"
+    progress_line
+    return 0
+  fi
+
   [ ! -e "$raw" ] || park_file "$raw" "Incomplete" "$stem" "$hash"
   probe_json "$src" > "$sj" || { write_error "$row" "$rel" probe "Source is unreadable"; printf '[ERROR] %s\n' "$rel"; progress_line; return 1; }
 
