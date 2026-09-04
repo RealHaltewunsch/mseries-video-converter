@@ -42,14 +42,32 @@ probe_json() {
     -of json "$1"
 }
 
+normalize_core_metadata() {
+  jq -Sc '.[0] |
+    def coordinates:
+      ([to_entries[]
+        | select(.key | test("GPSCoordinates$|:Location$"))
+        | .value
+        | tostring
+        | [scan("[+-]?[0-9]+(?:\\.[0-9]+)?")
+           | (((tonumber * 1000000) | round) / 1000000)]
+        | select(length >= 2)]
+       | first);
+    {
+      createDate: .["QuickTime:CreateDate"],
+      localCreationDate: .["Keys:CreationDate"],
+      gps: coordinates
+    }'
+}
+
 core_signature() {
+  # iPhone and imported MP4 files can describe the same ISO 6709 location in
+  # different QuickTime atoms. Compare the numeric coordinates, not the atom
+  # name or its formatting (for example "37.2 -113.2 66.3" vs
+  # "+37.2-113.2+66.300").
   exiftool -api QuickTimeUTC=1 -n -G1 -a -j \
-    -QuickTime:CreateDate -Keys:CreationDate '-*GPSCoordinates*' "$1" 2>/dev/null \
-    | jq -Sc '.[0] | {
-        createDate: .["QuickTime:CreateDate"],
-        localCreationDate: .["Keys:CreationDate"],
-        gps: ([to_entries[] | select(.key | test("GPSCoordinates")) | .value] | first)
-      }'
+    -QuickTime:CreateDate -Keys:CreationDate '-*GPSCoordinates*' -Keys:Location "$1" 2>/dev/null \
+    | normalize_core_metadata
 }
 
 restore_core_metadata() {
@@ -270,6 +288,10 @@ build_report() {
   awk -F '\t' 'NR>1{n++;a+=$4;b+=$5;if($2=="SUCCESS")ok++;else bad++}END{printf "Videos: %d\nSucceeded: %d\nFailed: %d\nOriginal (bytes): %.0f\nOutput (bytes): %.0f\nSaved (bytes): %.0f\nSaved (percent): %.2f\n",n,ok,bad,a,b,a-b,(a?100*(a-b)/a:0)}' \
     "$report_file" > "$summary_file"
 }
+
+if [ "${MVC_ENGINE_LIBRARY_ONLY:-0}" = 1 ]; then
+  return 0 2>/dev/null || exit 0
+fi
 
 if [ "${1:-}" = --worker ]; then
   source_dir=$MVC_SOURCE_DIR; destination_dir=$MVC_DESTINATION_DIR

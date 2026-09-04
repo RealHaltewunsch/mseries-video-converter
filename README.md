@@ -1,5 +1,9 @@
 # M-Series Video Converter
 
+<p align="center">
+  <img src="Assets/AppIcon.png" width="180" alt="M-Series Video Converter app icon">
+</p>
+
 A small native macOS app for converting iPhone and camera videos to space-saving HEVC. It uses the media engine in Apple Silicon, keeps the original files untouched, and verifies every result before accepting it.
 
 ## What it does

@@ -51,10 +51,17 @@ struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("M-Series Video Converter").font(.largeTitle.bold())
-                Text("Convert iPhone videos to space-saving HEVC while preserving capture time, GPS, and HDR.")
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 14) {
+                Image(nsImage: NSApplication.shared.applicationIconImage)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 64, height: 64)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("M-Series Video Converter").font(.largeTitle.bold())
+                    Text("Convert iPhone videos to space-saving HEVC while preserving capture time, GPS, and HDR.")
+                        .foregroundStyle(.secondary)
+                }
             }
 
             GroupBox {
