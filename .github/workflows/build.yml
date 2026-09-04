@@ -1,0 +1,15 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate engine
+        run: bash -n Support/Engine/convert_videos.sh
+      - name: Build Swift app
+        run: swift build -c release
