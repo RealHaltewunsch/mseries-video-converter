@@ -33,6 +33,54 @@ enum EncodingQuality: String, CaseIterable, Identifiable {
     }
 }
 
+struct HardwareProfile {
+    let chipName: String?
+    let recommendedParallelConversions: Int
+
+    static let current = detect()
+
+    private static func detect() -> HardwareProfile {
+        guard let chipName = appleSiliconChipName() else {
+            return HardwareProfile(chipName: nil, recommendedParallelConversions: 2)
+        }
+
+        // Apple currently equips Ultra chips with four video encode engines,
+        // Max chips with two, and the remaining M-series families with one.
+        let jobs: Int
+        if chipName.localizedCaseInsensitiveContains("Ultra") {
+            jobs = 4
+        } else if chipName.localizedCaseInsensitiveContains("Max") {
+            jobs = 2
+        } else {
+            jobs = 1
+        }
+        return HardwareProfile(chipName: chipName, recommendedParallelConversions: jobs)
+    }
+
+    private static func appleSiliconChipName() -> String? {
+        let task = Process()
+        let pipe = Pipe()
+        task.executableURL = URL(fileURLWithPath: "/usr/sbin/system_profiler")
+        task.arguments = ["SPHardwareDataType", "-json"]
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+
+        do {
+            try task.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            task.waitUntilExit()
+            guard task.terminationStatus == 0,
+                  let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let hardware = json["SPHardwareDataType"] as? [[String: Any]],
+                  let chipName = hardware.first?["chip_type"] as? String,
+                  chipName.hasPrefix("Apple M") else { return nil }
+            return chipName
+        } catch {
+            return nil
+        }
+    }
+}
+
 @main
 struct MSeriesVideoConverterApp: App {
     @StateObject private var model = ConverterModel()
@@ -176,7 +224,7 @@ struct FolderRow: View {
 final class ConverterModel: ObservableObject {
     @Published var sourcePath = ""
     @Published var destinationPath = ""
-    @Published var jobs = 2
+    @Published var jobs = HardwareProfile.current.recommendedParallelConversions
     @Published var targetResolution = TargetResolution.p1080
     @Published var quality = EncodingQuality.high
     @Published var isRunning = false

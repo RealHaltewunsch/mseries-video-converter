@@ -12,6 +12,7 @@ A small native macOS app for converting iPhone and camera videos to space-saving
 - Encode SDR video with `hevc_videotoolbox` on Apple Silicon.
 - Choose 720p, 1080p, or 1440p (2K/QHD) without upscaling.
 - Choose Low, Medium, High, or Very High variable-quality encoding for SDR video.
+- Select a conservative parallel-conversion default from the detected Apple chip family: one job for base/Pro, two for Max, and four for Ultra; the value remains adjustable.
 - Retain 10-bit HDR and Dolby Vision when Apple's converter supports it.
 - Preserve the primary audio track(s), recording date, local creation date, and QuickTime GPS coordinates.
 - Normalize and compare localized legacy QuickTime GPS fields by their actual coordinates.
