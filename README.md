@@ -104,6 +104,8 @@ Two parallel jobs are the recommended default. Depending on the video formats, m
 - A destination folder is tied to one source folder to prevent accidental mixing.
 - Temporary state and logs live in `.mseries-video-converter` inside the destination.
 - Progress is rebuilt from files on disk at every start; if no output files remain, hidden state is reset automatically.
+- A fully successful run removes temporary probes, per-file progress, and logs automatically while retaining only the small source/settings safety markers.
+- **Clear saved state…** removes all hidden state on demand after confirmation without deleting converted videos or files in `Problems`.
 - `conversion-report.tsv` and `summary.txt` contain the final report.
 
 ## Metadata policy

@@ -91,6 +91,8 @@ struct ContentView: View {
                 Stepper("Parallel conversions: \(model.jobs)", value: $model.jobs, in: 1...4)
                     .disabled(model.isRunning)
                 Spacer()
+                Button("Clear saved state…") { model.clearSavedState() }
+                    .disabled(model.destinationPath.isEmpty || model.isRunning)
                 Button("Open destination") { model.openDestination() }
                     .disabled(model.destinationPath.isEmpty)
             }
@@ -193,6 +195,33 @@ final class ConverterModel: ObservableObject {
     func openDestination() {
         guard !destinationPath.isEmpty else { return }
         NSWorkspace.shared.open(URL(fileURLWithPath: destinationPath))
+    }
+
+    func clearSavedState() {
+        guard !destinationPath.isEmpty, !isRunning else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "Clear saved state?"
+        alert.informativeText = "This removes hidden progress, temporary data, and diagnostic logs. Converted videos and files in Problems are not deleted."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Clear")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let stateURL = URL(fileURLWithPath: destinationPath)
+            .appendingPathComponent(".mseries-video-converter", isDirectory: true)
+        do {
+            if FileManager.default.fileExists(atPath: stateURL.path) {
+                try FileManager.default.removeItem(at: stateURL)
+            }
+            total = 0; completed = 0; succeeded = 0; failed = 0
+            logText = "Saved state cleared. Converted videos were not changed."
+            outputBuffer = ""
+            statusText = "Saved state cleared"
+        } catch {
+            statusText = "Could not clear saved state"
+            appendLog("ERROR: \(error.localizedDescription)")
+        }
     }
 
     func start() {

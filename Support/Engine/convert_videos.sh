@@ -372,4 +372,10 @@ batch_rc=$?
 build_report
 progress_line
 cat "$summary_file"
+if [ "$batch_rc" -eq 0 ]; then
+  rm -rf "$work_dir" "$rows_dir" "$logs_dir"
+  rm -f "$candidate_file"
+  find "$problem_dir" -depth -type d -empty -delete 2>/dev/null || true
+  printf '[CLEANUP] Removed temporary progress data and logs; source and settings markers were retained.\n'
+fi
 exit "$batch_rc"
