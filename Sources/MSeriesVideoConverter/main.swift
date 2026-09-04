@@ -40,10 +40,11 @@ struct MSeriesVideoConverterApp: App {
     var body: some Scene {
         WindowGroup("M-Series Video Converter") {
             ContentView(model: model)
-                .frame(minWidth: 720, minHeight: 620)
+                .frame(minWidth: 760, minHeight: 680)
                 .onAppear(perform: installApplicationIcon)
         }
         .windowResizability(.contentMinSize)
+        .defaultSize(width: 920, height: 740)
     }
 
     private func installApplicationIcon() {
