@@ -1,19 +1,19 @@
 # M-Series Video Converter
 
-A small native macOS app for converting iPhone and camera videos to space-saving HEVC at up to 1080p. It uses the media engine in Apple Silicon, keeps the original files untouched, and verifies every result before accepting it.
-
-The interface and documentation are currently German; contributions and translations are welcome.
+A small native macOS app for converting iPhone and camera videos to space-saving HEVC. It uses the media engine in Apple Silicon, keeps the original files untouched, and verifies every result before accepting it.
 
 ## What it does
 
 - Select source and destination folders in a native SwiftUI interface.
 - Encode SDR video with `hevc_videotoolbox` on Apple Silicon.
-- Downscale Dolby Vision/HLG to 1080p while retaining 10-bit HDR and Dolby Vision when Apple's converter supports it.
+- Choose 720p, 1080p, 4K, or original resolution without upscaling.
+- Choose Low, Medium, High, or Very High variable-quality encoding for SDR video.
+- Retain 10-bit HDR and Dolby Vision when Apple's converter supports it.
 - Preserve the primary audio track(s), recording date, local creation date, and QuickTime GPS coordinates.
 - Remove optional embedded preview images and allow Apple auxiliary tracks such as APAC to be omitted.
 - Resume an interrupted run and re-check existing output files.
 - Show global progress, live messages, a TSV report, and a summary.
-- Put rejected outputs in `Problemfaelle` instead of silently accepting them.
+- Put rejected outputs in `Problems` instead of silently accepting them.
 
 ## Requirements
 
@@ -86,8 +86,12 @@ The conversion engine can also be used without the GUI:
 ./Support/Engine/convert_videos.sh \
   --source "/path/to/originals" \
   --destination "/path/to/converted" \
-  --jobs 2
+  --jobs 2 \
+  --resolution 1080p \
+  --quality high
 ```
+
+Resolution accepts `720p`, `1080p`, `2160p`, or `original`. Quality accepts `low`, `medium`, `high`, or `very-high`.
 
 Two parallel jobs are the recommended default. Depending on the video formats, more concurrent jobs do not necessarily increase throughput.
 
@@ -98,7 +102,7 @@ Two parallel jobs are the recommended default. Depending on the video formats, m
 - The destination must not be inside the source directory.
 - A destination folder is tied to one source folder to prevent accidental mixing.
 - Temporary state and logs live in `.mseries-video-converter` inside the destination.
-- `konvertierungsprotokoll.tsv` and `zusammenfassung.txt` contain the final report.
+- `conversion-report.tsv` and `summary.txt` contain the final report.
 
 ## Metadata policy
 
@@ -113,7 +117,9 @@ It does not promise bit-for-bit preservation of every proprietary Apple track. D
 
 ## Quality policy
 
-SDR material is encoded with a quality-oriented VideoToolbox setting (`q:v 60`) and no fixed low bitrate. Existing HEVC files that already fit within 1080p are copied without re-encoding. HDR is handled by Apple's media framework, with an automatic single-pass fallback when multipass export is unavailable.
+SDR material uses quality-based variable bitrate rather than one fixed bitrate for every resolution and frame rate. The presets map to VideoToolbox quality values of 35, 50, 60, and 75. High is the default and matches the original quality setting. Existing HEVC files that already fit the selected resolution are copied without re-encoding.
+
+HDR is handled by Apple's media framework to retain HDR and Dolby Vision metadata. High and Very High request multipass export, with an automatic single-pass fallback. Apple does not expose the same fine-grained quality control for this path, and its smallest HEVC HDR export preset is 1080p; selecting 720p therefore keeps HDR output at up to 1080p and reports that decision in the log.
 
 ## License
 

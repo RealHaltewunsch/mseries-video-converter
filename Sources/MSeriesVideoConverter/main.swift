@@ -1,6 +1,40 @@
 import SwiftUI
 import AppKit
 
+enum TargetResolution: String, CaseIterable, Identifiable {
+    case p720 = "720p"
+    case p1080 = "1080p"
+    case p2160 = "4K"
+    case original = "Original"
+
+    var id: String { rawValue }
+    var argument: String {
+        switch self {
+        case .p720: "720p"
+        case .p1080: "1080p"
+        case .p2160: "2160p"
+        case .original: "original"
+        }
+    }
+}
+
+enum EncodingQuality: String, CaseIterable, Identifiable {
+    case low = "Low"
+    case medium = "Medium"
+    case high = "High"
+    case veryHigh = "Very High"
+
+    var id: String { rawValue }
+    var argument: String {
+        switch self {
+        case .low: "low"
+        case .medium: "medium"
+        case .high: "high"
+        case .veryHigh: "very-high"
+        }
+    }
+}
+
 @main
 struct MSeriesVideoConverterApp: App {
     @StateObject private var model = ConverterModel()
@@ -8,7 +42,7 @@ struct MSeriesVideoConverterApp: App {
     var body: some Scene {
         WindowGroup("M-Series Video Converter") {
             ContentView(model: model)
-                .frame(minWidth: 720, minHeight: 520)
+                .frame(minWidth: 720, minHeight: 620)
         }
         .windowResizability(.contentMinSize)
     }
@@ -21,23 +55,43 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 5) {
                 Text("M-Series Video Converter").font(.largeTitle.bold())
-                Text("iPhone-Videos platzsparend als HEVC 1080p sichern – mit Aufnahmezeit, GPS und HDR.")
+                Text("Convert iPhone videos to space-saving HEVC while preserving capture time, GPS, and HDR.")
                     .foregroundStyle(.secondary)
             }
 
             GroupBox {
                 VStack(spacing: 12) {
-                    FolderRow(title: "Quellordner", path: model.sourcePath, action: model.chooseSource)
+                    FolderRow(title: "Source folder", path: model.sourcePath, action: model.chooseSource)
                     Divider()
-                    FolderRow(title: "Zielordner", path: model.destinationPath, action: model.chooseDestination)
+                    FolderRow(title: "Destination folder", path: model.destinationPath, action: model.chooseDestination)
                 }.padding(4)
             }
 
+            GroupBox("Output settings") {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 24) {
+                        Picker("Maximum resolution", selection: $model.targetResolution) {
+                            ForEach(TargetResolution.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                        .disabled(model.isRunning)
+
+                        Picker("Quality", selection: $model.quality) {
+                            ForEach(EncodingQuality.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                        .disabled(model.isRunning)
+                    }
+                    Text("Videos are never upscaled. Compatible HEVC files are copied without re-encoding; HDR uses Apple's closest supported preset.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(4)
+            }
+
             HStack {
-                Stepper("Parallele Konvertierungen: \(model.jobs)", value: $model.jobs, in: 1...4)
+                Stepper("Parallel conversions: \(model.jobs)", value: $model.jobs, in: 1...4)
                     .disabled(model.isRunning)
                 Spacer()
-                Button("Zielordner öffnen") { model.openDestination() }
+                Button("Open destination") { model.openDestination() }
                     .disabled(model.destinationPath.isEmpty)
             }
 
@@ -51,16 +105,16 @@ struct ContentView: View {
                 }
                 ProgressView(value: model.progress)
                 HStack(spacing: 16) {
-                    Label("\(model.succeeded) erfolgreich", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                    Label("\(model.failed) Fehler", systemImage: "exclamationmark.triangle.fill")
+                    Label("\(model.succeeded) succeeded", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                    Label("\(model.failed) failed", systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(model.failed == 0 ? Color.secondary : Color.orange)
                 }.font(.callout)
             }
 
-            GroupBox("Protokoll") {
+            GroupBox("Log") {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        Text(model.logText.isEmpty ? "Bereit." : model.logText)
+                        Text(model.logText.isEmpty ? "Ready." : model.logText)
                             .font(.system(.caption, design: .monospaced))
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -71,12 +125,12 @@ struct ContentView: View {
             }
 
             HStack {
-                Text("Originaldateien werden nie verändert.").font(.footnote).foregroundStyle(.secondary)
+                Text("Original files are never modified.").font(.footnote).foregroundStyle(.secondary)
                 Spacer()
                 if model.isRunning {
-                    Button("Stoppen", role: .destructive) { model.stop() }
+                    Button("Stop", role: .destructive) { model.stop() }
                 } else {
-                    Button("Konvertierung starten") { model.start() }
+                    Button("Start conversion") { model.start() }
                         .buttonStyle(.borderedProminent).disabled(!model.canStart)
                 }
             }
@@ -93,12 +147,12 @@ struct FolderRow: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.headline)
-                Text(path.isEmpty ? "Noch nicht ausgewählt" : path)
+                Text(path.isEmpty ? "Not selected" : path)
                     .foregroundStyle(path.isEmpty ? .secondary : .primary)
                     .lineLimit(1).truncationMode(.middle)
             }
             Spacer()
-            Button("Auswählen …", action: action)
+            Button("Choose…", action: action)
         }
     }
 }
@@ -108,12 +162,14 @@ final class ConverterModel: ObservableObject {
     @Published var sourcePath = ""
     @Published var destinationPath = ""
     @Published var jobs = 2
+    @Published var targetResolution = TargetResolution.p1080
+    @Published var quality = EncodingQuality.high
     @Published var isRunning = false
     @Published var total = 0
     @Published var completed = 0
     @Published var succeeded = 0
     @Published var failed = 0
-    @Published var statusText = "Bereit"
+    @Published var statusText = "Ready"
     @Published var logText = ""
 
     private var process: Process?
@@ -141,16 +197,23 @@ final class ConverterModel: ObservableObject {
 
     func start() {
         guard canStart else { return }
-        guard sourcePath != destinationPath else { statusText = "Quelle und Ziel müssen verschieden sein"; return }
-        guard let engine = engineURL() else { statusText = "Konvertierungs-Engine nicht gefunden"; return }
+        guard sourcePath != destinationPath else { statusText = "Source and destination must be different"; return }
+        guard let engine = engineURL() else { statusText = "Conversion engine not found"; return }
 
         total = 0; completed = 0; succeeded = 0; failed = 0
-        logText = ""; outputBuffer = ""; isRunning = true; statusText = "Vorbereitung …"
+        logText = ""; outputBuffer = ""; isRunning = true; statusText = "Preparing…"
 
         let task = Process()
         let pipe = Pipe()
         task.executableURL = URL(fileURLWithPath: "/bin/bash")
-        task.arguments = [engine.path, "--source", sourcePath, "--destination", destinationPath, "--jobs", String(jobs)]
+        task.arguments = [
+            engine.path,
+            "--source", sourcePath,
+            "--destination", destinationPath,
+            "--jobs", String(jobs),
+            "--resolution", targetResolution.argument,
+            "--quality", quality.argument
+        ]
         task.standardOutput = pipe
         task.standardError = pipe
         var environment = ProcessInfo.processInfo.environment
@@ -169,11 +232,11 @@ final class ConverterModel: ObservableObject {
                 self.isRunning = false
                 self.process = nil
                 if finished.terminationReason == .uncaughtSignal {
-                    self.statusText = "Gestoppt"
+                    self.statusText = "Stopped"
                 } else if finished.terminationStatus == 0 {
-                    self.statusText = self.failed == 0 ? "Fertig" : "Fertig mit Fehlern"
+                    self.statusText = self.failed == 0 ? "Finished" : "Finished with errors"
                 } else {
-                    self.statusText = self.failed > 0 ? "Fertig mit Fehlern" : "Abgebrochen"
+                    self.statusText = self.failed > 0 ? "Finished with errors" : "Cancelled"
                 }
             }
         }
@@ -181,15 +244,15 @@ final class ConverterModel: ObservableObject {
         do {
             try task.run()
             process = task
-            statusText = "Konvertierung läuft"
+            statusText = "Converting"
         } catch {
             isRunning = false
-            statusText = "Start fehlgeschlagen"
-            appendLog("FEHLER: \(error.localizedDescription)")
+            statusText = "Could not start"
+            appendLog("ERROR: \(error.localizedDescription)")
         }
     }
 
-    func stop() { statusText = "Wird gestoppt …"; process?.interrupt() }
+    func stop() { statusText = "Stopping…"; process?.interrupt() }
 
     private func engineURL() -> URL? {
         let bundled = Bundle.main.resourceURL?.appendingPathComponent("Engine/convert_videos.sh")
@@ -210,7 +273,7 @@ final class ConverterModel: ObservableObject {
         let fields = line.split(separator: " ")
         guard fields.first == "[PROGRESS]", fields.count >= 5 else {
             if line.hasPrefix("[SCAN]") {
-                statusText = "Videos werden erfasst …"
+                statusText = "Scanning videos…"
                 if fields.count > 1, let found = Int(fields[1]) { total = found }
             }
             return
@@ -219,7 +282,7 @@ final class ConverterModel: ObservableObject {
         total = Int(fields[2]) ?? total
         succeeded = Int(fields[3]) ?? succeeded
         failed = Int(fields[4]) ?? failed
-        statusText = "Konvertierung läuft"
+        statusText = "Converting"
     }
 
     private func appendLog(_ line: String) {

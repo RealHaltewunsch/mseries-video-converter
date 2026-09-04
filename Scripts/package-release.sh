@@ -14,7 +14,7 @@ for value in "${release_credentials[@]}"; do
   [ -n "$value" ] && present=$((present + 1))
 done
 if [ "$present" -ne 0 ] && [ "$present" -ne 4 ]; then
-  printf 'Fehler: Signierung und Notarisierung müssen vollständig oder gar nicht konfiguriert sein.\n' >&2
+  printf 'Error: signing and notarization must be configured completely or not at all.\n' >&2
   exit 2
 fi
 
@@ -24,7 +24,7 @@ rm -f M-Series-Video-Converter.zip
 /usr/bin/ditto -c -k --keepParent "M-Series Video Converter.app" M-Series-Video-Converter.zip
 
 if [ "$present" -eq 4 ]; then
-  printf 'Übermittle App zur Apple-Notarisierung …\n'
+  printf 'Submitting app for Apple notarization…\n'
   xcrun notarytool submit M-Series-Video-Converter.zip \
     --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
   xcrun stapler staple "M-Series Video Converter.app"
@@ -33,10 +33,10 @@ if [ "$present" -eq 4 ]; then
   spctl --assess --type execute --verbose=2 "M-Series Video Converter.app"
   rm -f M-Series-Video-Converter.zip
   /usr/bin/ditto -c -k --keepParent "M-Series Video Converter.app" M-Series-Video-Converter.zip
-  printf 'Notarisierung erfolgreich.\n'
+  printf 'Notarization succeeded.\n'
 else
-  printf 'Hinweis: Apple-Zugangsdaten fehlen; Release bleibt ad-hoc signiert.\n'
+  printf 'Note: Apple credentials are missing; the release remains ad-hoc signed.\n'
 fi
 
 shasum -a 256 M-Series-Video-Converter.zip
-printf 'Release-Paket erstellt: %s\n' "$project_dir/dist/M-Series-Video-Converter.zip"
+printf 'Release package created: %s\n' "$project_dir/dist/M-Series-Video-Converter.zip"

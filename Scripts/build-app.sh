@@ -23,11 +23,11 @@ chmod +x "$app_dir/Contents/MacOS/MSeriesVideoConverter" "$app_dir/Contents/Reso
 
 if [ -n "$signing_identity" ]; then
   codesign --force --deep --options runtime --timestamp --sign "$signing_identity" "$app_dir"
-  printf 'Developer-ID-Signatur: %s\n' "$signing_identity"
+  printf 'Developer ID signature: %s\n' "$signing_identity"
 else
   codesign --force --deep --sign - "$app_dir"
-  printf 'Hinweis: ad-hoc signiert; keine Apple-Notarisierung möglich.\n'
+  printf 'Note: ad-hoc signed; Apple notarization is unavailable.\n'
 fi
 codesign --verify --deep --strict --verbose=2 "$app_dir"
 
-printf 'App erstellt: %s\n' "$app_dir"
+printf 'App created: %s\n' "$app_dir"
