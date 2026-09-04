@@ -4,16 +4,14 @@ import AppKit
 enum TargetResolution: String, CaseIterable, Identifiable {
     case p720 = "720p"
     case p1080 = "1080p"
-    case p2160 = "4K"
-    case original = "Original"
+    case p1440 = "1440p (2K/QHD)"
 
     var id: String { rawValue }
     var argument: String {
         switch self {
         case .p720: "720p"
         case .p1080: "1080p"
-        case .p2160: "2160p"
-        case .original: "original"
+        case .p1440: "1440p"
         }
     }
 }
@@ -80,7 +78,7 @@ struct ContentView: View {
                         }
                         .disabled(model.isRunning)
                     }
-                    Text("Videos are never upscaled. Compatible HEVC files are copied without re-encoding; HDR uses Apple's closest supported preset.")
+                    Text("Videos are never upscaled. Compatible HEVC files are copied without re-encoding; Apple exports HDR at up to 1080p for these presets.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

@@ -7,7 +7,7 @@ Usage: convert_videos.sh --source FOLDER --destination FOLDER [options]
 
 Options:
   --jobs 1..4                         Parallel conversions (default: 2)
-  --resolution 720p|1080p|2160p|original
+  --resolution 720p|1080p|1440p
                                       Maximum output size (default: 1080p)
   --quality low|medium|high|very-high
                                       SDR quality/file-size preset (default: high)
@@ -24,8 +24,7 @@ configure_profile() {
   case "$target_resolution" in
     720p) max_long=1280; max_short=720; av_preset=PresetHEVC1920x1080 ;;
     1080p) max_long=1920; max_short=1080; av_preset=PresetHEVC1920x1080 ;;
-    2160p) max_long=3840; max_short=2160; av_preset=PresetHEVC3840x2160 ;;
-    original) max_long=0; max_short=0; av_preset=PresetHEVCHighestQuality ;;
+    1440p) max_long=2560; max_short=1440; av_preset=PresetHEVC1920x1080 ;;
     *) die "Invalid resolution preset: $target_resolution" ;;
   esac
   case "$quality" in
@@ -90,7 +89,7 @@ verify_output() {
     def short($d): [$d[0],$d[1]]|min;
     def dv($x): ((v($x).side_data_list//[]) | map(select(.side_data_type=="DOVI configuration record")) | length);
     ($s[0]) as $a | ($o[0]) as $b | (dims($a)) as $sd | (dims($b)) as $od |
-    (if $target=="720p" and ((dv($a)>0) or ((v($a).pix_fmt//"")|contains("10")))
+    (if ($target=="720p" or $target=="1440p") and ((dv($a)>0) or ((v($a).pix_fmt//"")|contains("10")))
      then [1920,1080] else [$maxLong,$maxShort] end) as $limits |
     (if $limits[0]==0 then 1 else ([1,$limits[0]/long($sd),$limits[1]/short($sd)]|min) end) as $scale |
     [
@@ -208,9 +207,9 @@ convert_worker() {
   elif [ "$dv" -gt 0 ] || [[ "$pix" == *10* ]]; then
     mode="HDR"
     note="10-bit HDR/Dolby Vision preserved; optional Apple auxiliary tracks may be omitted"
-    if [ "$target_resolution" = 720p ]; then
-      note="$note; Apple HDR export uses 1080p as its smallest HEVC preset"
-      printf '[NOTICE] %s — Apple HDR export uses a 1080p minimum\n' "$rel"
+    if [ "$target_resolution" != 1080p ]; then
+      note="$note; Apple HDR export uses the 1080p HEVC preset"
+      printf '[NOTICE] %s — Apple HDR export uses the 1080p HEVC preset\n' "$rel"
     fi
     printf '[START] %s — HDR\n' "$rel"
     if [ "$use_multipass" -eq 1 ]; then
@@ -231,7 +230,6 @@ convert_worker() {
   else
     mode="SDR"
     if [ "$total_video" -gt 1 ]; then note="Embedded preview image removed"; else note="HEVC hardware encoding"; fi
-    if [ "$target_resolution" = original ]; then max_long=$long; max_short=$short; fi
     printf '[START] %s — SDR\n' "$rel"
     ffmpeg -hide_banner -y -noautorotate -i "$src" \
       -map 0:V:0 -map '0:a?' -map_metadata 0 -map_chapters 0 \

@@ -6,7 +6,7 @@ A small native macOS app for converting iPhone and camera videos to space-saving
 
 - Select source and destination folders in a native SwiftUI interface.
 - Encode SDR video with `hevc_videotoolbox` on Apple Silicon.
-- Choose 720p, 1080p, 4K, or original resolution without upscaling.
+- Choose 720p, 1080p, or 1440p (2K/QHD) without upscaling.
 - Choose Low, Medium, High, or Very High variable-quality encoding for SDR video.
 - Retain 10-bit HDR and Dolby Vision when Apple's converter supports it.
 - Preserve the primary audio track(s), recording date, local creation date, and QuickTime GPS coordinates.
@@ -92,7 +92,7 @@ The conversion engine can also be used without the GUI:
   --quality high
 ```
 
-Resolution accepts `720p`, `1080p`, `2160p`, or `original`. Quality accepts `low`, `medium`, `high`, or `very-high`.
+Resolution accepts `720p`, `1080p`, or `1440p`. Quality accepts `low`, `medium`, `high`, or `very-high`.
 
 Two parallel jobs are the recommended default. Depending on the video formats, more concurrent jobs do not necessarily increase throughput.
 
@@ -123,7 +123,7 @@ It does not promise bit-for-bit preservation of every proprietary Apple track. D
 
 SDR material uses quality-based variable bitrate rather than one fixed bitrate for every resolution and frame rate. The presets map to VideoToolbox quality values of 35, 50, 60, and 75. High is the default and matches the original quality setting. Existing HEVC files that already fit the selected resolution are copied without re-encoding.
 
-HDR is handled by Apple's media framework to retain HDR and Dolby Vision metadata. High and Very High request multipass export, with an automatic single-pass fallback. Apple does not expose the same fine-grained quality control for this path, and its smallest HEVC HDR export preset is 1080p; selecting 720p therefore keeps HDR output at up to 1080p and reports that decision in the log.
+HDR is handled by Apple's media framework to retain HDR and Dolby Vision metadata. High and Very High request multipass export, with an automatic single-pass fallback. Apple does not expose the same fine-grained quality control or a 1440p HEVC HDR preset for this path, so HDR uses Apple's 1080p preset and reports that decision in the log.
 
 ## License
 
