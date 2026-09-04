@@ -12,7 +12,7 @@ A small native macOS app for converting iPhone and camera videos to space-saving
 - Preserve the primary audio track(s), recording date, local creation date, and QuickTime GPS coordinates.
 - Normalize and compare localized legacy QuickTime GPS fields by their actual coordinates.
 - Remove optional embedded preview images and allow Apple auxiliary tracks such as APAC to be omitted.
-- Resume an interrupted run, re-check existing output files, and recover valid files rejected by an older metadata check.
+- Resume an interrupted run, rebuild progress from files on disk, and recover valid files rejected by an older metadata check.
 - Show global progress, live messages, a TSV report, and a summary.
 - Put rejected outputs in `Problems` instead of silently accepting them.
 
@@ -103,6 +103,7 @@ Two parallel jobs are the recommended default. Depending on the video formats, m
 - The destination must not be inside the source directory.
 - A destination folder is tied to one source folder to prevent accidental mixing.
 - Temporary state and logs live in `.mseries-video-converter` inside the destination.
+- Progress is rebuilt from files on disk at every start; if no output files remain, hidden state is reset automatically.
 - `conversion-report.tsv` and `summary.txt` contain the final report.
 
 ## Metadata policy

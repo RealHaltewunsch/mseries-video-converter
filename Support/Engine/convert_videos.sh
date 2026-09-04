@@ -313,6 +313,11 @@ destination_dir=$(cd "$destination_dir" && pwd -P)
 case "$destination_dir/" in "$source_dir/"*) die "The destination must not be inside the source folder.";; esac
 
 state_dir="$destination_dir/.mseries-video-converter"
+visible_file=$(find "$destination_dir" -path "$state_dir" -prune -o -type f ! -name '.DS_Store' -print -quit)
+if [ -z "$visible_file" ] && [ -d "$state_dir" ]; then
+  printf '[STATE] Destination contains no output files; starting with a clean internal state.\n'
+  rm -rf "$state_dir"
+fi
 work_dir="$state_dir/work"; rows_dir="$state_dir/rows"; logs_dir="$state_dir/logs"
 problem_dir="$destination_dir/Problems"
 report_file="$destination_dir/conversion-report.tsv"
@@ -333,6 +338,12 @@ if [ -f "$source_marker" ] && [ ! -f "$settings_marker" ] && [ "$settings" != "1
 fi
 printf '%s\n' "$source_dir" > "$source_marker"
 printf '%s\n' "$settings" > "$settings_marker"
+
+stale_rows=$(find "$rows_dir" -type f -name '*.tsv' 2>/dev/null | wc -l | tr -d ' ')
+if [ "$stale_rows" -gt 0 ]; then
+  printf '[STATE] Rebuilding progress from files on disk; discarding %s stale status entries.\n' "$stale_rows"
+  find "$rows_dir" -type f -name '*.tsv' -delete
+fi
 
 printf '[SCAN] Searching for MOV and MP4 files…\n'
 find "$source_dir" -type f \( -iname '*.mov' -o -iname '*.mp4' \) -print0 > "$candidate_file"
