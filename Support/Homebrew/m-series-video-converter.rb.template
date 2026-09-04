@@ -4,7 +4,7 @@ cask "m-series-video-converter" do
 
   url "https://github.com/RealHaltewunsch/mseries-video-converter/releases/download/v#{version}/M-Series-Video-Converter.zip"
   name "M-Series Video Converter"
-  desc "Convert iPhone videos to HEVC 1080p on Apple Silicon"
+  desc "Convert iPhone videos to HEVC on Apple Silicon"
   homepage "https://github.com/RealHaltewunsch/mseries-video-converter"
 
   depends_on arch: :arm64
