@@ -8,7 +8,7 @@ jobs:
   macos:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate engine
         run: bash -n Support/Engine/convert_videos.sh
       - name: Build Swift app
