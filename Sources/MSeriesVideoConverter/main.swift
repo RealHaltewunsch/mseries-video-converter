@@ -41,8 +41,15 @@ struct MSeriesVideoConverterApp: App {
         WindowGroup("M-Series Video Converter") {
             ContentView(model: model)
                 .frame(minWidth: 720, minHeight: 620)
+                .onAppear(perform: installApplicationIcon)
         }
         .windowResizability(.contentMinSize)
+    }
+
+    private func installApplicationIcon() {
+        guard let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+              let icon = NSImage(contentsOf: iconURL) else { return }
+        NSApplication.shared.applicationIconImage = icon
     }
 }
 
