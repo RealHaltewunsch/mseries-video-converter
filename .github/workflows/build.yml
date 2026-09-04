@@ -11,5 +11,11 @@ jobs:
       - uses: actions/checkout@v7
       - name: Validate engine
         run: bash -n Support/Engine/convert_videos.sh
+      - name: Validate packaging scripts
+        run: bash -n Scripts/*.sh
+      - name: Render and validate Cask fixture
+        run: |
+          ./Scripts/render-cask.sh 0.0.0 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa "$RUNNER_TEMP/m-series-video-converter.rb"
+          ruby -c "$RUNNER_TEMP/m-series-video-converter.rb"
       - name: Build Swift app
-        run: swift build -c release
+        run: swift build -c release --triple arm64-apple-macosx13.0

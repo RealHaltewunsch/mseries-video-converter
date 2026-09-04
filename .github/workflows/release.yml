@@ -1,0 +1,132 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing v-prefixed tag to publish"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    env:
+      APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Resolve version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid release tag: $tag"; exit 2; }
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          echo "APP_VERSION=${tag#v}" >> "$GITHUB_ENV"
+
+      - name: Validate release credentials
+        shell: bash
+        run: |
+          values=(
+            "${APPLE_CERTIFICATE_P12_BASE64:-}"
+            "${APPLE_CERTIFICATE_PASSWORD:-}"
+            "${APPLE_ID:-}"
+            "${APPLE_TEAM_ID:-}"
+            "${APPLE_APP_PASSWORD:-}"
+          )
+          present=0
+          for value in "${values[@]}"; do [[ -n "$value" ]] && present=$((present + 1)); done
+          if [[ "$present" -ne 0 && "$present" -ne 5 ]]; then
+            echo "Apple signing/notarization secrets are incomplete. Configure all five documented secrets or none."
+            exit 1
+          fi
+          if [[ "$present" -eq 0 ]]; then
+            echo "::warning::Publishing an ad-hoc signed build because Apple signing secrets are not configured."
+          fi
+
+      - name: Import Developer ID certificate
+        if: ${{ env.APPLE_CERTIFICATE_P12_BASE64 != '' }}
+        shell: bash
+        run: |
+          keychain="$RUNNER_TEMP/mseries-signing.keychain-db"
+          certificate="$RUNNER_TEMP/developer-id.p12"
+          password="$(openssl rand -hex 24)"
+          printf '%s' "$APPLE_CERTIFICATE_P12_BASE64" | base64 -D > "$certificate"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          identity=$(security find-identity -v -p codesigning "$keychain" | awk -F '"' '/Developer ID Application/{print $2; exit}')
+          [[ -n "$identity" ]] || { echo "Developer ID Application identity not found"; exit 1; }
+          echo "SIGNING_IDENTITY=$identity" >> "$GITHUB_ENV"
+          echo "SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+
+      - name: Build, sign, notarize, and package
+        run: ./Scripts/package-release.sh
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          asset="dist/M-Series-Video-Converter.zip"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$asset" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$asset" --generate-notes --title "M-Series Video Converter $APP_VERSION"
+          fi
+
+      - name: Compute Cask
+        shell: bash
+        run: |
+          sha=$(shasum -a 256 dist/M-Series-Video-Converter.zip | awk '{print $1}')
+          ./Scripts/render-cask.sh "$APP_VERSION" "$sha" "$RUNNER_TEMP/m-series-video-converter.rb"
+
+      - name: Check out Homebrew tap
+        if: ${{ env.TAP_DEPLOY_KEY != '' }}
+        uses: actions/checkout@v7
+        with:
+          repository: RealHaltewunsch/homebrew-tap
+          ssh-key: ${{ env.TAP_DEPLOY_KEY }}
+          path: homebrew-tap
+
+      - name: Update Homebrew tap
+        if: ${{ env.TAP_DEPLOY_KEY != '' }}
+        shell: bash
+        run: |
+          mkdir -p homebrew-tap/Casks
+          cp "$RUNNER_TEMP/m-series-video-converter.rb" homebrew-tap/Casks/m-series-video-converter.rb
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/m-series-video-converter.rb
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Update m-series-video-converter to $APP_VERSION"
+          git push
+
+      - name: Tap update unavailable
+        if: ${{ env.TAP_DEPLOY_KEY == '' }}
+        run: echo "::warning::TAP_DEPLOY_KEY is not configured; the Homebrew tap was not updated."
+
+      - name: Remove temporary keychain
+        if: ${{ always() && env.SIGNING_KEYCHAIN != '' }}
+        run: security delete-keychain "$SIGNING_KEYCHAIN"

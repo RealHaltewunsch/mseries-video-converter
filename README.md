@@ -19,14 +19,23 @@ The interface and documentation are currently German; contributions and translat
 
 - Apple Silicon Mac (M1 or newer)
 - macOS 13 or newer
-- [Homebrew](https://brew.sh/)
-- FFmpeg, ExifTool, and jq
+- [Homebrew](https://brew.sh/); the Cask installs FFmpeg, ExifTool, and jq automatically
 
-Install the command-line dependencies:
+## Install with Homebrew
 
 ```bash
-brew install ffmpeg exiftool jq
+brew tap RealHaltewunsch/tap
+brew install --cask m-series-video-converter
 ```
+
+Upgrade or uninstall the app with:
+
+```bash
+brew upgrade --cask m-series-video-converter
+brew uninstall --cask m-series-video-converter
+```
+
+Until the Apple notarization secrets described below are configured, published ZIPs remain ad-hoc signed. On first launch, macOS may therefore require right-clicking the app and choosing **Open**.
 
 ## Build the app
 
@@ -45,7 +54,29 @@ To create a ZIP suitable for a GitHub release:
 ./Scripts/package-release.sh
 ```
 
-The resulting app is ad-hoc signed, not notarized. After downloading it, macOS may require the user to right-click the app and choose **Open** the first time.
+Without release credentials, the resulting app is ad-hoc signed. With all Apple variables configured, the packaging script signs with Hardened Runtime, submits the ZIP for notarization, staples the ticket, and verifies the finished app.
+
+## Publishing a release
+
+Pushing a semantic version tag such as `v0.2.0` starts the release workflow. It builds an ARM64 app for macOS 13 or newer, publishes `M-Series-Video-Converter.zip`, calculates its SHA256, and updates `Casks/m-series-video-converter.rb` in the separate `RealHaltewunsch/homebrew-tap` repository.
+
+The following GitHub Actions secrets enable Developer ID signing and Apple notarization:
+
+- `APPLE_CERTIFICATE_P12_BASE64`: base64-encoded Developer ID Application certificate (`.p12`)
+- `APPLE_CERTIFICATE_PASSWORD`: password of the `.p12` file
+- `APPLE_ID`: Apple ID used for notarization
+- `APPLE_TEAM_ID`: Apple Developer Team ID
+- `APPLE_APP_PASSWORD`: app-specific password for the Apple ID
+
+All five Apple secrets must be configured together. If none are configured, the workflow deliberately publishes an ad-hoc-signed fallback. A partially configured signing setup fails the release instead of silently publishing the wrong artifact.
+
+`TAP_DEPLOY_KEY` contains a write-enabled SSH deploy key scoped only to the Homebrew tap. It lets the workflow update the Cask without a broadly privileged personal access token.
+
+To build a specific version locally:
+
+```bash
+APP_VERSION=0.2.0 ./Scripts/package-release.sh
+```
 
 ## Command-line use
 
